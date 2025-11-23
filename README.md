@@ -52,8 +52,6 @@ SentinelVerifier is an MVP demonstrating a small provable AI agent security arch
     streamlit run app.py
     ```
 
-## Hackathon Pitch Points
-
 -   **The Problem:** Standard AI agents are black boxes. Their safety is based on "fuzzy" prompting, which fails under adversarial attacks. You can't *prove* they are safe.
 -   **Our Solution:** A hybrid, neuro-symbolic architecture that separates understanding from verification. We use an LLM for what it's good at (language) and a formal solver for what it's good at (unbreakable logic).
 -   **The Differentiator:** We are demonstrating the "Zelkova for Agents"—just as AWS uses SMT solvers to verify IAM policies, we use them to verify AI agent actions in real-time. This isn't just another chatbot; it's a blueprint for building provably safe autonomous systems.
