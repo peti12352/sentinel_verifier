@@ -1,8 +1,14 @@
 # SentinelVerifier 🛡️
 
+<<<<<<< HEAD
 **We built the first Guardian AI that doesn't just *guess* if an action is safe—it *proves* it mathematically using runtime formal verification.**
 
 SentinelVerifier is an MVP demonstrating a small provable AI agent security architecture. Instead of relying on probabilistic LLM-based safety filters, this project implements a deterministic **Execution Guardrail** using a Satisfiability Modulo Theories (SMT) solver (Microsoft's Z3) to formally verify agent actions against a set of inviolable rules *before* they are executed.
+=======
+**"We built the first Guardian AI that doesn't just _guess_ if an action is safe—it _proves_ it mathematically using runtime formal verification."**
+
+SentinelVerifier is a 4-hour hackathon MVP demonstrating a next-generation AI agent security architecture. Instead of relying on probabilistic LLM-based safety filters, this project implements a deterministic **Execution Guardrail** using a Satisfiability Modulo Theories (SMT) solver (Microsoft's Z3) to formally verify agent actions against a set of inviolable rules _before_ they are executed.
+>>>>>>> 9c08039 (Update README with formatting improvements, add architecture and implementation plan documents, and enhance setup instructions for SentinelVerifier project.)
 
 ## Key Features & Innovations
 
@@ -14,44 +20,55 @@ SentinelVerifier is an MVP demonstrating a small provable AI agent security arch
 
 ## Tech Stack
 
--   **Orchestration:** `langgraph`
--   **Agent LLM:** OpenRouter-compatible models (e.g., `qwen/qwen3-next-80b-a3b-instruct`) via `langchain-openai`
--   **Formal Verification (Symbolic AI):** `z3-solver`
--   **UI & Visualization:** `streamlit`
--   **State Management:** In-memory simulation (`account_state.py`)
+- **Orchestration:** `langgraph`
+- **Agent LLM:** OpenRouter-compatible models (e.g., `qwen/qwen3-next-80b-a3b-instruct`) via `langchain-openai`
+- **Formal Verification (Symbolic AI):** `z3-solver`
+- **UI & Visualization:** `streamlit`
+- **State Management:** In-memory simulation (`account_state.py`)
 
 ## How to Run
 
 1.  **Clone the repository:**
+
     ```bash
     git clone https://github.com/peti12352/sentinel_verfier.git
     cd sentinel_verfier
     ```
 
 2.  **Set up the environment:**
+
     ```bash
     # Create and activate a virtual environment
     python -m venv venv
     .\venv\Scripts\Activate.ps1
-    
+
     # Install dependencies
     pip install -r requirements.txt
     ```
 
 3.  **Configure API Keys:**
-    -   Create a file named `.env` in the project root.
-    -   Add your OpenRouter API key and other settings:
-        ```ini
-        OPENROUTER_API_KEY="your-key-here"
-        OPENROUTER_BASE_URL="https://openrouter.ai/api/v1"
-        OPENROUTER_MODEL="qwen/qwen3-next-80b-a3b-instruct"
-        ```
+
+    - Create a file named `.env` in the project root.
+    - Add your OpenRouter API key and other settings:
+      ```ini
+      OPENROUTER_API_KEY="your-key-here"
+      OPENROUTER_BASE_URL="https://openrouter.ai/api/v1"
+      OPENROUTER_MODEL="qwen/qwen3-next-80b-a3b-instruct"
+      ```
 
 4.  **Run the application:**
     ```bash
-    streamlit run app.py
+    streamlit run src/app.py
     ```
 
+<<<<<<< HEAD
 -   **The Problem:** Standard AI agents are black boxes. Their safety is based on "fuzzy" prompting, which fails under adversarial attacks. You can't *prove* they are safe.
 -   **Our Solution:** A hybrid, neuro-symbolic architecture that separates understanding from verification. We use an LLM for what it's good at (language) and a formal solver for what it's good at (unbreakable logic).
 -   **The Differentiator:** We are demonstrating the "Zelkova for Agents"—just as AWS uses SMT solvers to verify IAM policies, we use them to verify AI agent actions in real-time. This isn't just another chatbot; it's a blueprint for building provably safe autonomous systems.
+=======
+## Hackathon Pitch Points
+
+- **The Problem:** Standard AI agents are black boxes. Their safety is based on "fuzzy" prompting, which fails under adversarial attacks. You can't _prove_ they are safe.
+- **Our Solution:** A hybrid, neuro-symbolic architecture that separates understanding from verification. We use an LLM for what it's good at (language) and a formal solver for what it's good at (unbreakable logic).
+- **The Differentiator:** We are demonstrating the "Zelkova for Agents"—just as AWS uses SMT solvers to verify IAM policies, we use them to verify AI agent actions in real-time. This isn't just another chatbot; it's a blueprint for building provably safe autonomous systems.
+>>>>>>> 9c08039 (Update README with formatting improvements, add architecture and implementation plan documents, and enhance setup instructions for SentinelVerifier project.)
