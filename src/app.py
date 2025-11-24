@@ -5,6 +5,8 @@ import database as db
 from config import SECURITY_RULES
 import streamlit as st
 from langchain_core.messages import HumanMessage, AIMessage
+import time
+from collections import deque
 
 
 st.set_page_config(layout="wide")
@@ -24,6 +26,8 @@ with col1:
         st.session_state.messages = []
     if "thread_id" not in st.session_state:
         st.session_state.thread_id = {"configurable": {"thread_id": "1"}}
+    if "message_timestamps" not in st.session_state:
+        st.session_state.message_timestamps = deque()
 
     # Display all existing messages
     for msg in st.session_state.messages:
@@ -82,6 +86,24 @@ with col1:
     # --- Standard Chat Input ---
     else:
         if prompt := st.chat_input("Ask the agent to transfer money or check balances..."):
+            # --- Rate Limiting Logic ---
+            RATE_LIMIT_MESSAGES = 5
+            RATE_LIMIT_PERIOD_SECONDS = 60
+
+            current_time = time.time()
+
+            # Clean up old timestamps
+            while st.session_state.message_timestamps and \
+                  st.session_state.message_timestamps[0] <= current_time - RATE_LIMIT_PERIOD_SECONDS:
+                st.session_state.message_timestamps.popleft()
+
+            if len(st.session_state.message_timestamps) >= RATE_LIMIT_MESSAGES:
+                st.warning(f"Rate limit exceeded. Please wait a moment before sending more messages.")
+                st.stop() # Stop further execution of the script for this run
+
+            st.session_state.message_timestamps.append(current_time)
+            # --- End Rate Limiting Logic ---
+
             st.session_state.messages.append(HumanMessage(content=prompt))
 
             # Run the agent graph, now passing the entire message history
