@@ -13,8 +13,26 @@ import account_state  # Import the state to access the canonical account names
 from tools import transfer_funds, get_balance, list_available_accounts, get_transaction_rules
 from verifier import guardian_check
 
-# Load environment variables from .env file
+# Load environment variables from .env file (for local development)
 load_dotenv()
+
+
+def get_config(key: str, default: str = None) -> str:
+    """
+    Safely retrieves configuration values from Streamlit secrets (for cloud)
+    or environment variables (for local development).
+    """
+    try:
+        import streamlit as st
+        # Try to get from Streamlit secrets first (for Streamlit Cloud)
+        if hasattr(st, 'secrets') and key in st.secrets:
+            return st.secrets[key]
+    except (ImportError, RuntimeError):
+        # Streamlit not available or not in Streamlit context
+        pass
+    
+    # Fall back to environment variables (for local development)
+    return os.getenv(key, default)
 
 
 class AgentState(TypedDict):
@@ -161,11 +179,10 @@ Respond with a single JSON object with one key, "is_consistent": boolean.
 
     # Use a separate, clean LLM instance for the audit
     auditor_llm = ChatOpenAI(
-        model=os.getenv("OPENROUTER_MODEL",
-                        "qwen/qwen3-next-80b-a3b-instruct"),
+        model=get_config("OPENROUTER_MODEL", "qwen/qwen3-next-80b-a3b-instruct"),
         temperature=0,
-        base_url=os.getenv("OPENROUTER_BASE_URL"),
-        api_key=os.getenv("OPENROUTER_API_KEY")
+        base_url=get_config("OPENROUTER_BASE_URL"),
+        api_key=get_config("OPENROUTER_API_KEY")
     )
 
     audit_result_str = auditor_llm.invoke(prompt).content
@@ -191,10 +208,10 @@ Respond with a single JSON object with one key, "is_consistent": boolean.
 
 # --- LLM and Tool Setup ---
 llm = ChatOpenAI(
-    model=os.getenv("OPENROUTER_MODEL", "qwen/qwen3-next-80b-a3b-instruct"),
+    model=get_config("OPENROUTER_MODEL", "qwen/qwen3-next-80b-a3b-instruct"),
     temperature=0,
-    base_url=os.getenv("OPENROUTER_BASE_URL"),
-    api_key=os.getenv("OPENROUTER_API_KEY")
+    base_url=get_config("OPENROUTER_BASE_URL"),
+    api_key=get_config("OPENROUTER_API_KEY")
 )
 tools = [transfer_funds, get_balance,
          list_available_accounts, get_transaction_rules]
