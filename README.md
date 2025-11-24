@@ -1,6 +1,6 @@
 # SentinelVerifier 🛡️
 
-**"We built the first Guardian AI that doesn't just _guess_ if an action is safe—it _proves_ it mathematically using runtime formal verification."**
+**We built the first Guardian AI that doesn't just _guess_ if an action is safe—it _proves_ it mathematically using runtime formal verification.**
 
 SentinelVerifier is a 4-hour hackathon MVP demonstrating a next-generation AI agent security architecture. Instead of relying on probabilistic LLM-based safety filters, this project implements a deterministic **Execution Guardrail** using a Satisfiability Modulo Theories (SMT) solver (Microsoft's Z3) to formally verify agent actions against a set of inviolable rules _before_ they are executed.
 
