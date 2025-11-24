@@ -9,7 +9,12 @@ ACCOUNT_ID_MAP = {name: i for i, name in enumerate(account_state.ACCOUNTS.keys()
 def verify_transaction_safety(amount_val: int, destination_val: str):
     """
     Uses Z3 to formally verify if a transaction meets all system invariants.
+    Note: This function assumes the destination account exists (check that first).
     """
+    # Pre-check: Ensure destination exists before attempting proof
+    if destination_val not in ACCOUNT_ID_MAP:
+        return False, f"Invalid Destination: Account '{destination_val}' does not exist in the system."
+    
     amount = Int('amount')
     destination = Int('destination')
     s = Solver()
@@ -21,19 +26,14 @@ def verify_transaction_safety(amount_val: int, destination_val: str):
     s.add(amount > 0)
     s.add(amount <= limit)
 
-    # 2. **New Complex Rule:** If the amount is over $8,000, it MUST go to Account_D.
+    # 2. **Complex Rule:** If the amount is over $8,000, it MUST go to Account_D.
     #    We use Implies(condition, requirement) to model this.
     high_value_acct_id = ACCOUNT_ID_MAP["Account_D"]
     s.add(Implies(amount > 8000, destination == high_value_acct_id))
 
     # --- Proposed Action (The "Attack") ---
     s.add(amount == amount_val)
-    # Convert the string destination to its integer ID for the proof.
-    if destination_val in ACCOUNT_ID_MAP:
-        s.add(destination == ACCOUNT_ID_MAP[destination_val])
-    else:
-        # If the destination doesn't exist, it can't be part of a valid proof.
-        return False, "Invariant Violation: Destination account does not exist in the ID map."
+    s.add(destination == ACCOUNT_ID_MAP[destination_val])
 
     # --- Verification ---
     if s.check() == sat:
@@ -41,22 +41,22 @@ def verify_transaction_safety(amount_val: int, destination_val: str):
     else:
         # More detailed error checking for the user
         if amount_val > 8000 and destination_val != "Account_D":
-            return False, f"Invariant Violation: Transfers over $8,000 must go to Account_D, not '{destination_val}'."
+            return False, f"Policy Violation: Transfers over $8,000 must go to Account_D, not '{destination_val}'."
         if amount_val <= 0:
-            return False, "Invariant Violation: Amount must be positive."
+            return False, "Invalid Amount: Transfer amount must be positive."
         if amount_val > limit:
-            return False, f"Invariant Violation: Amount ${amount_val} exceeds the ${limit} limit."
-        return False, "Invariant Violation: Transaction failed symbolic checks for an unknown reason."
+            return False, f"Limit Exceeded: Amount ${amount_val:,} exceeds the maximum transaction limit of ${limit:,}."
+        return False, "Verification Failed: Transaction does not satisfy system invariants."
 
 
 def is_destination_blacklisted(destination: str):
     """
-    Checks if the destination account is in the hard-coded blacklist.
+    Checks if the destination account is valid and not blacklisted.
     """
-    if destination in account_state.BLACKLISTED_ACCOUNTS:
-        return True, f"Heuristic Violation: Destination account '{destination}' is blacklisted."
     if destination not in account_state.ACCOUNTS:
-        return True, f"Heuristic Violation: Destination account '{destination}' does not exist."
+        return True, f"Invalid Account: Destination '{destination}' does not exist. Available accounts: {', '.join(account_state.ACCOUNTS.keys())}."
+    if destination in account_state.BLACKLISTED_ACCOUNTS:
+        return True, f"Blocked Account: Destination '{destination}' is on the security blacklist and cannot receive transfers."
     return False, "Destination OK."
 
 def has_sufficient_funds(sender: str, amount: int):
@@ -85,13 +85,14 @@ def guardian_check(tool_call):
         destination = args.get('destination')
         sender = args.get('sender', 'USER_ACCOUNT')
 
-        # 1. Symbolic Check (Z3) for complex logical invariants
-        is_safe, reason = verify_transaction_safety(amount, destination)
-        if not is_safe: return False, reason
-
-        # 2. Heuristic Check for destination validity (blacklist)
+        # 1. Pre-check: Verify destination account exists (before attempting proof)
         is_blacklisted, reason = is_destination_blacklisted(destination)
         if is_blacklisted: return False, reason
+
+        # 2. Symbolic Check (Z3) for complex logical invariants
+        #    (Only runs if destination is valid)
+        is_safe, reason = verify_transaction_safety(amount, destination)
+        if not is_safe: return False, reason
         
         # 3. Heuristic Check for sufficient funds
         has_funds, reason = has_sufficient_funds(sender, amount)

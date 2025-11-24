@@ -90,26 +90,31 @@ with col2:
                         args = event.get("tool_args", {})
                         amount = args.get("amount", "N/A")
                         dest = args.get("destination", "N/A")
-                        dest_id = ACCOUNT_ID_MAP.get(dest, "N/A")
-                        
                         reason = event.get("reason", "")
                         
-                        st.code(f"""
+                        # Check if account exists before showing Z3 proof
+                        if dest in ACCOUNT_ID_MAP:
+                            dest_id = ACCOUNT_ID_MAP[dest]
+                            st.code(f"""
 # Z3 Solver Input
 solver.add(amount > 0)
 solver.add(amount <= {account_state.TRANSACTION_LIMIT})
 solver.add(Implies(amount > 8000, destination == {ACCOUNT_ID_MAP.get('Account_D', 'N/A')}))
 solver.add(amount == {amount})
 solver.add(destination == {dest_id})
-                        """, language="python")
+                            """, language="python")
 
-                        st.markdown("##### Z3 Solver Output")
-                        if status == "BLOCKED" and "Invariant Violation" in reason:
-                            st.error(f"UNSATISFIABLE\nReason: {reason}")
-                        elif status in ["APPROVED", "SUCCESSFULLY_EXECUTED"]:
-                            st.success("SATISFIABLE")
+                            st.markdown("##### Z3 Solver Output")
+                            if status == "BLOCKED" and any(keyword in reason for keyword in ["Policy Violation", "Limit Exceeded", "Invalid Amount", "Verification Failed"]):
+                                st.error(f"UNSATISFIABLE\n\n**Reason:** {reason}")
+                            elif status in ["APPROVED", "SUCCESSFULLY_EXECUTED"]:
+                                st.success("SATISFIABLE\n\nAll invariants satisfied. Transaction approved.")
+                            else:
+                                st.warning(f"NOT CHECKED BY Z3\n\n**Reason:** {reason}")
                         else:
-                             st.warning(f"NOT CHECKED BY Z3\nReason: {reason}")
+                            # Account doesn't exist - show a clear message instead of a broken proof
+                            st.info("**Pre-Verification Check Failed**\n\nThe destination account does not exist, so the Z3 proof was not executed.")
+                            st.error(f"**Blocked:** {reason}")
                 else:
                     st.markdown(summary)
 
