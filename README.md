@@ -4,9 +4,21 @@
 
 SentinelVerifier is a 4-hour hackathon MVP demonstrating a next-generation AI agent security architecture. Instead of relying on probabilistic LLM-based safety filters, this project implements a deterministic **Execution Guardrail** using a Satisfiability Modulo Theories (SMT) solver (Microsoft's Z3) to formally verify agent actions against a set of inviolable rules _before_ they are executed.
 
+## 🚀 Live Demo
+
+**Try it now:** [sentinel-verifier.streamlit.app](https://sentinel-verifier.streamlit.app)
+
+Experience the system in action: attempt transactions, see real-time Z3 proof verification, and watch the guardian block unsafe actions with mathematical certainty.
+
 ## Key Features & Innovations
 
 1.  **Neuro-Symbolic Architecture:** This project moves beyond pure LLM chaining. It combines a generative AI (for understanding user intent) with a symbolic AI (Z3, for rigid, provable logic), representing a state-of-the-art hybrid approach to AI safety.
+    
+    **What is Neuro-Symbolic AI?** Traditional AI approaches fall into two camps:
+    - **Neural/Subsymbolic (LLMs):** Great at understanding natural language and context, but probabilistic and can't guarantee correctness.
+    - **Symbolic (SMT Solvers):** Rigid, mathematical, and provably correct, but can't understand natural language.
+    
+    **SentinelVerifier's Approach:** We use the LLM (neural) to understand what the user wants and translate it into structured actions, then use Z3 (symbolic) to mathematically prove those actions are safe. This gives us the best of both worlds: human-friendly interaction with mathematical guarantees.
 2.  **Runtime Formal Verification:** We use the Z3 solver to construct mathematical proofs on-the-fly. The system doesn't just check if a transaction is "less than $10,000"; it formally proves that the proposed action satisfies the logical invariant `amount <= 10000`.
 3.  **Complex Logical Invariants:** The verifier goes beyond simple bounds checking. It enforces complex, conditional rules, such as: `Implies(amount > 8000, destination == "Account_D")`. This proves the system's ability to handle sophisticated, real-world business logic.
 4.  **LLM Hallucination & Disobedience Defense:** The system implements a second security layer: a **Response Guardrail**. A dedicated "auditor" LLM cross-references the agent's final text response against an immutable execution log to prevent the agent from lying to or misleading the user after an action has been blocked.
@@ -55,7 +67,7 @@ SentinelVerifier is a 4-hour hackathon MVP demonstrating a next-generation AI ag
     streamlit run src/app.py
     ```
 
-## Hackathon Pitch Points
+## Why SentinelVerifier?
 
 - **The Problem:** Standard AI agents are black boxes. Their safety is based on "fuzzy" prompting, which fails under adversarial attacks. You can't _prove_ they are safe.
 - **Our Solution:** A hybrid, neuro-symbolic architecture that separates understanding from verification. We use an LLM for what it's good at (language) and a formal solver for what it's good at (unbreakable logic).
