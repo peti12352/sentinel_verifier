@@ -1,4 +1,8 @@
 # app.py
+from verifier import get_account_id_map
+from config import SECURITY_RULES
+import database as db
+from agent import app
 import sys
 import os
 import streamlit as st
@@ -8,23 +12,18 @@ from langchain_core.messages import HumanMessage, AIMessage
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
-from agent import app
-import database as db
-from config import SECURITY_RULES
-from verifier import get_account_id_map
-
-
 st.set_page_config(layout="wide")
 
 st.title("🛡️ SentinelVerifier Demo")
-st.caption("A runtime verification system for AI agents that polices actions and responses.")
+st.caption(
+    "A runtime verification system for AI agents that polices actions and responses.")
 
 # --- Main Chat Interface ---
 col1, col2 = st.columns([2, 1])
 
 with col1:
     st.header("Chat with the Finance Agent")
-    
+
     # Initialize session state
     if "messages" not in st.session_state:
         st.session_state.messages = []
@@ -38,7 +37,8 @@ with col1:
 
     # Check the current state for a pending confirmation
     thread_state = app.get_state(st.session_state.thread_id)
-    pending_tool_call = thread_state.values.get("pending_tool_call") if thread_state else None
+    pending_tool_call = thread_state.values.get(
+        "pending_tool_call") if thread_state else None
 
     # --- Confirmation UI ---
     if pending_tool_call:
@@ -49,7 +49,8 @@ with col1:
         col_confirm, col_cancel = st.columns(2)
         with col_confirm:
             if st.button("✅ Confirm Transaction", use_container_width=True):
-                st.session_state.messages.append(HumanMessage(content="CONFIRM"))
+                st.session_state.messages.append(
+                    HumanMessage(content="CONFIRM"))
                 # Re-run the graph to execute the confirmed action
                 events = app.stream(
                     {"messages": [HumanMessage(content="CONFIRM")]},
@@ -59,7 +60,7 @@ with col1:
                 for event in events:
                     if "talker" in event:
                         final_event = event
-                
+
                 response_message = final_event["talker"]["messages"][-1]
                 if isinstance(response_message, AIMessage):
                     st.session_state.messages.append(response_message)
@@ -67,7 +68,8 @@ with col1:
 
         with col_cancel:
             if st.button("❌ Cancel Transaction", use_container_width=True):
-                st.session_state.messages.append(HumanMessage(content="CANCEL"))
+                st.session_state.messages.append(
+                    HumanMessage(content="CANCEL"))
                 # Re-run the graph to handle the cancellation
                 events = app.stream(
                     {"messages": [HumanMessage(content="CANCEL")]},
@@ -76,23 +78,23 @@ with col1:
                 for event in events:
                     if "talker" in event:
                         final_event = event
-                
+
                 response_message = final_event["talker"]["messages"][-1]
                 if isinstance(response_message, AIMessage):
                     st.session_state.messages.append(response_message)
                 st.rerun()
-    
+
     # --- Standard Chat Input ---
     else:
         if prompt := st.chat_input("Ask the agent to transfer money or check balances..."):
             st.session_state.messages.append(HumanMessage(content=prompt))
-            
+
             # Run the agent graph, now passing the entire message history
             events = app.stream(
                 {"messages": st.session_state.messages},
                 st.session_state.thread_id,
             )
-                
+
             # The last message might be the talker's response or a halt
             # We just need to find the final state to see if a confirmation is needed
             final_state = None
@@ -105,7 +107,7 @@ with col1:
                 response_message = final_state["talker"]["messages"][-1]
                 if isinstance(response_message, AIMessage):
                     st.session_state.messages.append(response_message)
-            
+
             st.rerun()
 
 
@@ -117,14 +119,16 @@ with col2:
     st.json({acc['id']: f"${acc['balance']:,}" for acc in db.get_all_accounts()})
 
     st.subheader("System Rules")
-    st.markdown(f"- **Transaction Limit:** ${SECURITY_RULES.get('max_amount'):,}")
-    st.markdown(f"- **Blacklisted Accounts:** `{', '.join(db.get_all_blacklisted_accounts())}`")
+    st.markdown(
+        f"- **Transaction Limit:** ${SECURITY_RULES.get('max_amount'):,}")
+    st.markdown(
+        f"- **Blacklisted Accounts:** `{', '.join(db.get_all_blacklisted_accounts())}`")
 
     st.subheader("Execution Log")
     try:
         thread_state = app.get_state(st.session_state.thread_id)
         history = []
-        
+
         if thread_state and hasattr(thread_state, 'values') and isinstance(thread_state.values, dict):
             history = thread_state.values.get('execution_history', [])
 
@@ -137,27 +141,30 @@ with col2:
                 status = event.get("status", "UNKNOWN")
 
                 summary = f"**{len(history) - i}:** {tool_name} — **{status}**"
-                
+
                 # Make an expander for every transfer_funds attempt
                 if tool_name == "transfer_funds":
                     with st.expander(summary):
                         st.json(event)
                         st.markdown("---")
                         st.markdown("##### Proof Visualization")
-                        
+
                         args = event.get("tool_args", {})
                         amount = args.get("amount", "N/A")
                         dest = args.get("destination", "N/A")
                         reason = event.get("reason", "")
-                        
+
                         ACCOUNT_ID_MAP = get_account_id_map()
                         # Check if account exists before showing Z3 proof
                         if dest in ACCOUNT_ID_MAP:
                             dest_id = ACCOUNT_ID_MAP[dest]
-                            user_acct_id = ACCOUNT_ID_MAP.get('USER_ACCOUNT', 0)
-                            high_value_threshold = SECURITY_RULES.get("high_value_threshold", 8000)
-                            high_value_dest_acct_name = SECURITY_RULES.get("high_value_destination_account", "Account_D")
-                            
+                            user_acct_id = ACCOUNT_ID_MAP.get(
+                                'USER_ACCOUNT', 0)
+                            high_value_threshold = SECURITY_RULES.get(
+                                "high_value_threshold", 8000)
+                            high_value_dest_acct_name = SECURITY_RULES.get(
+                                "high_value_destination_account", "Account_D")
+
                             st.code(f"""
 # Z3 Solver Input
 # Security Invariant: Sender must be USER_ACCOUNT
@@ -175,17 +182,22 @@ solver.add(sender == {user_acct_id})
 
                             st.markdown("##### Z3 Solver Output")
                             if status == "BLOCKED" and any(keyword in reason for keyword in ["Authorization Violation", "Policy Violation", "Limit Exceeded", "Invalid Amount", "Verification Failed"]):
-                                st.error(f"UNSATISFIABLE\n\n**Reason:** {reason}")
+                                st.error(
+                                    f"UNSATISFIABLE\n\n**Reason:** {reason}")
                             elif status in ["APPROVED", "SUCCESSFULLY_EXECUTED"]:
-                                st.success("SATISFIABLE\n\nAll invariants satisfied. Transaction approved.")
+                                st.success(
+                                    "SATISFIABLE\n\nAll invariants satisfied. Transaction approved.")
                             else:
-                                st.warning(f"NOT CHECKED BY Z3\n\n**Reason:** {reason}")
+                                st.warning(
+                                    f"NOT CHECKED BY Z3\n\n**Reason:** {reason}")
                         else:
                             # Account doesn't exist - show a clear message instead of a broken proof
-                            st.info("**Pre-Verification Check Failed**\n\nThe destination account does not exist, so the Z3 proof was not executed.")
+                            st.info(
+                                "**Pre-Verification Check Failed**\n\nThe destination account does not exist, so the Z3 proof was not executed.")
                             st.error(f"**Blocked:** {reason}")
                 else:
                     st.markdown(summary)
 
     except Exception as e:
-        st.error(f"Could not retrieve execution log. Start a new chat. Error: {e}")
+        st.error(
+            f"Could not retrieve execution log. Start a new chat. Error: {e}")

@@ -31,7 +31,8 @@ def get_config(key: str, default: str = None) -> str:
             raise e
     value = os.getenv(key, default)
     if value is None:
-        raise ValueError(f"Configuration key '{key}' not found. Please set it in .env or Streamlit secrets.")
+        raise ValueError(
+            f"Configuration key '{key}' not found. Please set it in .env or Streamlit secrets.")
     return value
 
 
@@ -61,7 +62,8 @@ def doer_node(state: AgentState):
     last_user_message = state["messages"][-1]
     tools_with_no_op = tools + [no_op]
     llm_with_doer_tools = llm.bind_tools(tools_with_no_op)
-    result = llm_with_doer_tools.invoke([SystemMessage(content=system_prompt), last_user_message])
+    result = llm_with_doer_tools.invoke(
+        [SystemMessage(content=system_prompt), last_user_message])
     return {"messages": state["messages"] + [result]}
 
 
@@ -80,7 +82,7 @@ def guardian_node(state: AgentState):
     if tool_call['name'] == 'transfer_funds':
         original_args = tool_call['args']
         normalized_args = original_args.copy()
-        
+
         destination = normalized_args.get('destination', '')
         destination_lower = destination.lower()
 
@@ -103,7 +105,8 @@ def guardian_node(state: AgentState):
             tool_call['args'] = normalized_args
 
     is_safe, reason = guardian_check(tool_call)
-    history_entry = {"tool_name": tool_call['name'], "tool_args": tool_call['args']}
+    history_entry = {
+        "tool_name": tool_call['name'], "tool_args": tool_call['args']}
 
     if is_safe:
         history_entry["status"] = "AWAITING_CONFIRMATION"
@@ -129,7 +132,7 @@ def confirmation_router(state: AgentState) -> str:
     user_response = state["messages"][-1].content.strip().upper()
     if user_response == "CONFIRM":
         return "tool_node"
-    else: # Any other response (e.g., "CANCEL") is treated as a cancellation
+    else:  # Any other response (e.g., "CANCEL") is treated as a cancellation
         # Update the history to show the user cancelled
         last_event = state["execution_history"][-1]
         last_event["status"] = "CANCELLED_BY_USER"
@@ -145,19 +148,21 @@ def tool_node(state: AgentState):
         return state
 
     # The ToolNode requires the tool call to be in a message
-    tool_input_message = AIMessage(content="", tool_calls=[tool_call_to_execute])
-    tool_result_dict = tool_node_executor.invoke({"messages": [tool_input_message]})
-    
+    tool_input_message = AIMessage(
+        content="", tool_calls=[tool_call_to_execute])
+    tool_result_dict = tool_node_executor.invoke(
+        {"messages": [tool_input_message]})
+
     tool_output = tool_result_dict['messages'][0].content
-    
+
     new_history = copy.deepcopy(state.get("execution_history", []))
     new_history[-1]["status"] = "SUCCESSFULLY_EXECUTED"
     new_history[-1]["result"] = tool_output
-    
+
     return {
         "messages": state["messages"],
         "execution_history": new_history,
-        "pending_tool_call": None, # Clear the pending call
+        "pending_tool_call": None,  # Clear the pending call
     }
 
 
@@ -173,7 +178,7 @@ def talker_node(state: AgentState):
             break
 
     if not history or history[-1].get("tool_name") == "no_op":
-         # This means the "Doer" chose no_op on the last turn
+        # This means the "Doer" chose no_op on the last turn
         final_response_prompt = (
             "You are a helpful and friendly financial assistant. The user's last request was ambiguous or not related to a financial action. "
             "Politely ask for clarification or try to help with their request. User's message: "
@@ -186,7 +191,7 @@ def talker_node(state: AgentState):
             # This is a special case handled by the UI, but we provide a fallback message.
             final_response_prompt = "A transaction is awaiting your confirmation. Please respond with 'confirm' or 'cancel'."
         else:
-             final_response_prompt = (
+            final_response_prompt = (
                 "You are a helpful and friendly financial assistant. Your role is to communicate the result of a financial operation to the user. "
                 "Based *only* on the following final system event, generate a clear and direct response. "
                 "Do not add any information not present in the event summary."
@@ -194,7 +199,8 @@ def talker_node(state: AgentState):
             )
 
     talker_llm = ChatOpenAI(
-        model=get_config("OPENROUTER_MODEL", "qwen/qwen3-next-80b-a3b-instruct"),
+        model=get_config("OPENROUTER_MODEL",
+                         "qwen/qwen3-next-80b-a3b-instruct"),
         temperature=0.7,
         base_url=get_config("OPENROUTER_BASE_URL"),
         api_key=get_config("OPENROUTER_API_KEY")
@@ -208,6 +214,7 @@ def route_after_doer(state: AgentState):
     if not last_message.tool_calls or last_message.tool_calls[0]['name'] == 'no_op':
         return "talker"
     return "guardian"
+
 
 def route_after_guardian(state: AgentState):
     last_history_entry = state["execution_history"][-1]
@@ -225,10 +232,15 @@ llm = ChatOpenAI(
     base_url=get_config("OPENROUTER_BASE_URL"),
     api_key=get_config("OPENROUTER_API_KEY")
 )
+
+
 def no_op():
     """Call this tool when the user's request is ambiguous or does not map to a specific action."""
     pass
-tools = [transfer_funds, get_balance, list_available_accounts, get_transaction_rules]
+
+
+tools = [transfer_funds, get_balance,
+         list_available_accounts, get_transaction_rules]
 tool_node_executor = ToolNode(tools)
 
 # --- Graph Definition ---
@@ -263,7 +275,7 @@ graph_builder.add_conditional_edges(
     }
 )
 graph_builder.add_conditional_edges(
-    "doer", 
+    "doer",
     route_after_doer,
     {
         "talker": "talker",
@@ -271,10 +283,10 @@ graph_builder.add_conditional_edges(
     }
 )
 graph_builder.add_conditional_edges(
-    "guardian", 
+    "guardian",
     route_after_guardian,
     {
-        END: END, # The graph can end here if confirmation is required
+        END: END,  # The graph can end here if confirmation is required
         "talker": "talker"
     }
 )
