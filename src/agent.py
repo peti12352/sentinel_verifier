@@ -70,16 +70,17 @@ def doer_node(state: AgentState):
 def guardian_node(state: AgentState):
     last_message = state["messages"][-1]
     tool_call = last_message.tool_calls[0]
+    tool_name = tool_call['name']
 
     # If the Doer decided no action was needed, we just record that.
-    if tool_call['name'] == 'no_op':
+    if tool_name == 'no_op':
         history_entry = {"tool_name": "no_op", "status": "SKIPPED"}
         return {
             "messages": state["messages"],
             "execution_history": state.get("execution_history", []) + [history_entry]
         }
 
-    if tool_call['name'] == 'transfer_funds':
+    if tool_name == 'transfer_funds':
         original_args = tool_call['args']
         normalized_args = original_args.copy()
 
@@ -109,14 +110,24 @@ def guardian_node(state: AgentState):
         "tool_name": tool_call['name'], "tool_args": tool_call['args']}
 
     if is_safe:
-        history_entry["status"] = "AWAITING_CONFIRMATION"
-        history_entry["reason"] = "All checks passed. Awaiting user confirmation."
-        # Halt and wait for confirmation by storing the tool call
-        return {
-            "messages": state["messages"],
-            "execution_history": state.get("execution_history", []) + [history_entry],
-            "pending_tool_call": tool_call,
-        }
+        if tool_name == 'transfer_funds':
+            history_entry["status"] = "AWAITING_CONFIRMATION"
+            history_entry["reason"] = "All checks passed. Awaiting user confirmation."
+            # Halt and wait for confirmation by storing the tool call
+            return {
+                "messages": state["messages"],
+                "execution_history": state.get("execution_history", []) + [history_entry],
+                "pending_tool_call": tool_call,
+            }
+        else:
+            # For safe, read-only tools, we can approve them for immediate execution.
+            history_entry["status"] = "APPROVED_FOR_EXECUTION"
+            history_entry["reason"] = reason
+            return {
+                "messages": state["messages"],
+                "execution_history": state.get("execution_history", []) + [history_entry],
+                "pending_tool_call": tool_call, # Pass the tool call for the tool_node to execute
+            }
     else:
         history_entry["status"] = "BLOCKED"
         history_entry["reason"] = reason
@@ -218,11 +229,17 @@ def route_after_doer(state: AgentState):
 
 def route_after_guardian(state: AgentState):
     last_history_entry = state["execution_history"][-1]
-    if last_history_entry["status"] == "AWAITING_CONFIRMATION":
-        # We halt the graph here. The UI will take over.
+    status = last_history_entry.get("status")
+    
+    if status == "AWAITING_CONFIRMATION":
+        # We halt the graph here. The UI will take over for confirmation.
         return END
-    # If blocked or any other status, go to the talker to report it
-    return "talker"
+    elif status == "APPROVED_FOR_EXECUTION":
+        # The tool is safe and can be executed immediately.
+        return "tool_node"
+    else: # BLOCKED or any other status
+        # Go to the talker to report the outcome.
+        return "talker"
 
 
 # --- LLM and Tool Setup ---
@@ -286,8 +303,9 @@ graph_builder.add_conditional_edges(
     "guardian",
     route_after_guardian,
     {
-        END: END,  # The graph can end here if confirmation is required
-        "talker": "talker"
+        END: END,  # Halts for confirmation
+        "tool_node": "tool_node",  # Proceeds directly to execution
+        "talker": "talker"  # Reports blocks or other outcomes
     }
 )
 graph_builder.add_edge("tool_node", "talker")

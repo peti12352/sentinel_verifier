@@ -1,15 +1,10 @@
 # app.py
 from verifier import get_account_id_map
-from config import SECURITY_RULES
-import database as db
 from agent import app
-import sys
-import os
+import database as db
+from config import SECURITY_RULES
 import streamlit as st
 from langchain_core.messages import HumanMessage, AIMessage
-
-# Add the project root to the Python path
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
 st.set_page_config(layout="wide")
