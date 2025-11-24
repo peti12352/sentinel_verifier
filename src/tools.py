@@ -4,16 +4,18 @@ from pydantic import BaseModel, Field
 import account_state
 
 class TransferSchema(BaseModel):
-    amount: int = Field(description="The amount of money to transfer.")
+    amount: int = Field(description="The amount of money to transfer from your account (USER_ACCOUNT).")
     destination: str = Field(description="The destination account ID.")
-    sender: str = Field(description="The account sending the money.", default="USER_ACCOUNT")
 
 @tool(args_schema=TransferSchema)
-def transfer_funds(amount: int, destination: str, sender: str = "USER_ACCOUNT") -> str:
+def transfer_funds(amount: int, destination: str) -> str:
     """
-    Executes a money transfer. 
+    Executes a money transfer from USER_ACCOUNT to the specified destination.
+    This tool can ONLY transfer from USER_ACCOUNT (the authenticated user's account).
     This tool should only be called AFTER passing all verification checks.
     """
+    sender = "USER_ACCOUNT"  # Hard-coded: transfers can only come from the authenticated user
+    
     # This check is redundant if the verifier works, but is good practice.
     if sender not in account_state.ACCOUNTS or destination not in account_state.ACCOUNTS:
         return "Error: Sender or destination account not found."

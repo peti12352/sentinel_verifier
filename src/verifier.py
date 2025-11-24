@@ -83,7 +83,7 @@ def guardian_check(tool_call):
         args = tool_call['args']
         amount = args.get('amount')
         destination = args.get('destination')
-        sender = args.get('sender', 'USER_ACCOUNT')
+        sender = "USER_ACCOUNT"  # Hard-coded: all transfers must come from the authenticated user
 
         # 1. Pre-check: Verify destination account exists (before attempting proof)
         is_blacklisted, reason = is_destination_blacklisted(destination)
