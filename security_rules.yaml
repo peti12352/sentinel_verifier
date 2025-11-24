@@ -1,0 +1,4 @@
+transaction_rules:
+  max_amount: 10000
+  high_value_threshold: 8000
+  high_value_destination_account: "Account_D"
