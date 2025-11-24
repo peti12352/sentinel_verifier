@@ -30,7 +30,7 @@ def get_config(key: str, default: str = None) -> str:
     except (ImportError, RuntimeError):
         # Streamlit not available or not in Streamlit context
         pass
-    
+
     # Fall back to environment variables (for local development)
     return os.getenv(key, default)
 
@@ -152,11 +152,28 @@ def response_validator_node(state: AgentState):
     history = state.get("execution_history", [])
     last_message = state["messages"][-1]
 
+    # Skip validation if no tools were called or agent is still using tools
     if not history or last_message.tool_calls:
-        # If no tools were called or agent is still using tools, no validation needed.
+        return state
+
+    # Only validate if the last event was a tool call (not just any old event)
+    # Check if there's a recent tool call in the message history
+    recent_tool_call = False
+    for msg in reversed(state["messages"][-5:]):  # Check last 5 messages
+        if hasattr(msg, 'tool_calls') and msg.tool_calls:
+            recent_tool_call = True
+            break
+
+    # If there's no recent tool call, this is just normal conversation - skip validation
+    if not recent_tool_call:
         return state
 
     last_event = history[-1]
+
+    # Only validate if the last event is actually a transfer_funds attempt
+    # (we don't need to validate responses to read-only operations like get_balance)
+    if last_event.get("tool_name") != "transfer_funds":
+        return state
 
     prompt = f"""You are a strict, logical auditor AI. Your task is to determine if an agent's response is a truthful and direct representation of the last system event.
 
@@ -174,12 +191,13 @@ def response_validator_node(state: AgentState):
 
 Respond with a single JSON object with one key, "is_consistent": boolean.
 - Set to false if the response contradicts the ground truth (e.g., it says 'all checks passed' when the status was 'BLOCKED').
-- Set to true if the response accurately reflects the outcome in the ground truth.
+- Set to true if the response accurately reflects the outcome in the ground truth OR if the response is about something completely unrelated to the last tool call.
 """
 
     # Use a separate, clean LLM instance for the audit
     auditor_llm = ChatOpenAI(
-        model=get_config("OPENROUTER_MODEL", "qwen/qwen3-next-80b-a3b-instruct"),
+        model=get_config("OPENROUTER_MODEL",
+                         "qwen/qwen3-next-80b-a3b-instruct"),
         temperature=0,
         base_url=get_config("OPENROUTER_BASE_URL"),
         api_key=get_config("OPENROUTER_API_KEY")
