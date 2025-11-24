@@ -6,21 +6,28 @@ import account_state
 # This is a common practice when working with symbolic solvers.
 ACCOUNT_ID_MAP = {name: i for i, name in enumerate(account_state.ACCOUNTS.keys())}
 
-def verify_transaction_safety(amount_val: int, destination_val: str):
+def verify_transaction_safety(amount_val: int, destination_val: str, sender_val: str = "USER_ACCOUNT"):
     """
     Uses Z3 to formally verify if a transaction meets all system invariants.
-    Note: This function assumes the destination account exists (check that first).
+    This function mathematically proves that the sender is USER_ACCOUNT and all other rules are satisfied.
     """
-    # Pre-check: Ensure destination exists before attempting proof
+    # Pre-check: Ensure accounts exist before attempting proof
     if destination_val not in ACCOUNT_ID_MAP:
         return False, f"Invalid Destination: Account '{destination_val}' does not exist in the system."
+    if sender_val not in ACCOUNT_ID_MAP:
+        return False, f"Invalid Sender: Account '{sender_val}' does not exist in the system."
     
     amount = Int('amount')
     destination = Int('destination')
+    sender = Int('sender')
     s = Solver()
     
     # --- Invariants (The Constitution) ---
     limit = account_state.TRANSACTION_LIMIT
+    user_account_id = ACCOUNT_ID_MAP["USER_ACCOUNT"]
+    
+    # 0. **CRITICAL SECURITY INVARIANT:** Sender MUST be USER_ACCOUNT (mathematically enforced)
+    s.add(sender == user_account_id)
     
     # 1. Amount must be positive and within the overall transaction limit.
     s.add(amount > 0)
@@ -34,12 +41,15 @@ def verify_transaction_safety(amount_val: int, destination_val: str):
     # --- Proposed Action (The "Attack") ---
     s.add(amount == amount_val)
     s.add(destination == ACCOUNT_ID_MAP[destination_val])
+    s.add(sender == ACCOUNT_ID_MAP[sender_val])
 
     # --- Verification ---
     if s.check() == sat:
         return True, "Verified Safe: Transaction parameters conform to all symbolic invariants."
     else:
         # More detailed error checking for the user
+        if sender_val != "USER_ACCOUNT":
+            return False, f"Authorization Violation: Transfers can only be initiated from USER_ACCOUNT, not '{sender_val}'. This is mathematically enforced by the Z3 proof."
         if amount_val > 8000 and destination_val != "Account_D":
             return False, f"Policy Violation: Transfers over $8,000 must go to Account_D, not '{destination_val}'."
         if amount_val <= 0:
@@ -89,9 +99,9 @@ def guardian_check(tool_call):
         is_blacklisted, reason = is_destination_blacklisted(destination)
         if is_blacklisted: return False, reason
 
-        # 2. Symbolic Check (Z3) for complex logical invariants
-        #    (Only runs if destination is valid)
-        is_safe, reason = verify_transaction_safety(amount, destination)
+        # 2. Symbolic Check (Z3) for complex logical invariants including sender authorization
+        #    This mathematically proves that sender == USER_ACCOUNT
+        is_safe, reason = verify_transaction_safety(amount, destination, sender)
         if not is_safe: return False, reason
         
         # 3. Heuristic Check for sufficient funds

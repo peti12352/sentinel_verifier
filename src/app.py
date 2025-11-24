@@ -95,17 +95,24 @@ with col2:
                         # Check if account exists before showing Z3 proof
                         if dest in ACCOUNT_ID_MAP:
                             dest_id = ACCOUNT_ID_MAP[dest]
+                            user_acct_id = ACCOUNT_ID_MAP.get('USER_ACCOUNT', 0)
                             st.code(f"""
 # Z3 Solver Input
+# Security Invariant: Sender must be USER_ACCOUNT
+solver.add(sender == {user_acct_id})
+# Amount constraints
 solver.add(amount > 0)
 solver.add(amount <= {account_state.TRANSACTION_LIMIT})
+# Policy: High-value transfers must go to Account_D
 solver.add(Implies(amount > 8000, destination == {ACCOUNT_ID_MAP.get('Account_D', 'N/A')}))
+# Proposed action
 solver.add(amount == {amount})
 solver.add(destination == {dest_id})
+solver.add(sender == {user_acct_id})
                             """, language="python")
 
                             st.markdown("##### Z3 Solver Output")
-                            if status == "BLOCKED" and any(keyword in reason for keyword in ["Policy Violation", "Limit Exceeded", "Invalid Amount", "Verification Failed"]):
+                            if status == "BLOCKED" and any(keyword in reason for keyword in ["Authorization Violation", "Policy Violation", "Limit Exceeded", "Invalid Amount", "Verification Failed"]):
                                 st.error(f"UNSATISFIABLE\n\n**Reason:** {reason}")
                             elif status in ["APPROVED", "SUCCESSFULLY_EXECUTED"]:
                                 st.success("SATISFIABLE\n\nAll invariants satisfied. Transaction approved.")
