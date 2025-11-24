@@ -23,11 +23,12 @@ with col1:
         st.session_state.thread_id = {"configurable": {"thread_id": "1"}}
 
     for msg in st.session_state.messages:
-        st.chat_message(msg.type).write(msg.content)
+        role = "user" if isinstance(msg, HumanMessage) else "assistant"
+        st.chat_message(role).write(msg.content)
 
     if prompt := st.chat_input("Ask the agent to transfer money or check balances..."):
         st.session_state.messages.append(HumanMessage(content=prompt))
-        st.chat_message("human").write(prompt)
+        st.chat_message("user").write(prompt)
         
         # Stream the agent's response
         events = app.stream(
@@ -36,7 +37,7 @@ with col1:
         )
         
         response = ""
-        with st.chat_message("ai").empty():
+        with st.chat_message("assistant").empty():
             for event in events:
                 if "messages" in event.get("validator", {}):
                     msg = event["validator"]["messages"][-1]
